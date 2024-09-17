@@ -5,11 +5,16 @@ import discord
 from discord.ext import tasks
 from discord.guild import Guild
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+my_token = os.getenv('discord_token')
+
 delay_seconds = 30
 matus_user_id = 0
-my_token = "MTI4NTIyNjE2MDg0NjAxNjUyMg.GfR7rq.Ds5e7o0nU-vcNw3JUEHhyxHzsFsX9EMg4zyxiQ"
-test_server_id = 1242952554799829103
 
+#flag if commands have been pushed to servers
 synced = 0
 
 intents = discord.Intents.default()
