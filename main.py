@@ -1,4 +1,5 @@
 import pickle
+import re
 import time
 
 import discord
@@ -11,6 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 my_token = os.getenv('discord_token')
 
+database_path = 'servers.dump'
+
 delay_seconds = 30
 matus_user_id = 0
 
@@ -18,25 +21,28 @@ matus_user_id = 0
 synced = 0
 
 intents = discord.Intents.default()
-intents.message_content = True
+#intents.message_content = True  #for on_message
 intents.members = True
 intents.presences = True
 intents.guilds = True
 
-#bot = commands.Bot(command_prefix='/', intents=intents)
-
 bot = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(bot)
 
-#open database
-with open('servers.dump', 'rb') as f:
-  servers = pickle.load(f)
 server_data = {}
+servers = {}
+
+#open database
+if not os.path.exists(database_path):
+  with open(database_path, 'wb') as f:
+    pickle.dump(servers, f)
+
+with open(database_path, 'rb') as f:
+  servers = pickle.load(f)
 
 
 @tasks.loop(seconds=delay_seconds)
 async def log_users():
-
   for server in bot.guilds:
     server_data = servers.get(server.id, {})
     timestamp = round(time.time())
@@ -46,7 +52,7 @@ async def log_users():
         server_data[member.id] = timestamp
     servers[server.id] = server_data
 
-  with open('servers.dump', 'wb') as f:
+  with open(database_path, 'wb') as f:
     pickle.dump(servers, f)
 
 @tasks.loop(seconds=5)
@@ -60,8 +66,7 @@ async def sync_commands():
 #list all offline users
 @tree.command(
   name='last',
-  description='List all offline users',
-  guild=discord.Object(id=1222889416339751014)
+  description='List all offline users'
 )
 async def last(interaction: discord.Interaction):
   server_data = servers.get(interaction.guild_id, {})
@@ -81,16 +86,25 @@ async def last(interaction: discord.Interaction):
       else:
         response += member.name + ' as ' + member.display_name + ' was never seen'
 
-  await interaction.response.send_message(response)
+  await interaction.response.send_message(response, ephemeral=True)
 
 
 #reply with time of specified user
-@tree.command(name='lastseen', description='When was user last seen')
+@tree.command(
+  name='lastseen',
+  description='When was user last seen'
+)
 async def lastseen(interaction: discord.Interaction, mention: str):
   server_data = servers.get(interaction.guild_id, {})
-  id = int(mention.replace("<", "").replace(">", "").\
-    replace("!", "").replace("@", "").replace("&", ""))
-  #replace(/[<@!>]/g, '')
+  #id = int(mention.replace("<", "").replace(">", "").\
+  #  replace("!", "").replace("@", "").replace("&", ""))
+  try:
+    id = int(re.sub('[<>&@!]', '', mention))
+  except Exception as e:
+    text = 'User not found.'
+    await interaction.response.send_message(text, ephemeral=True)
+    return
+
   member = await bot.fetch_user(id)
 
   member_time = time.time()
@@ -98,22 +112,25 @@ async def lastseen(interaction: discord.Interaction, mention: str):
     member_time = server_data[member.id]
 
   if member.bot:
-    text = 'Bots are not tracked'
+    text = 'Bots are not tracked.'
   elif member.id not in server_data:
-    text = 'User not logged.'
+    text = member.display_name + ' not seen online.'
   elif time.time() - member_time < delay_seconds:
-    text = member.name + ' is online'
+    text = member.display_name + ' is online.'
   else:
-    text = member.name +" was last seen on " + \
-    format_timestamp(member_time)
-  await interaction.response.send_message(text)
+    text = member.display_name +" was last seen on " + \
+    format_timestamp(member_time) + '.'
+  await interaction.response.send_message(text, ephemeral=True)
 
 
 #finish this command - add conversions
-@tree.command(name='alloffline', description='See times of all offline users')
-async def alloffline(ctx):
-  server_data = servers.get(ctx.guild.id, {})
-  print(server_data)
+# @tree.command(
+#   name='alloffline',
+#   description='See times of all offline users'
+# )
+# async def alloffline(ctx):
+#   server_data = servers.get(ctx.guild.id, {})
+#   print(server_data)
 
 
 def format_timestamp(timestamp):
