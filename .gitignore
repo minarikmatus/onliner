@@ -1,2 +1,3 @@
-servers.dump
 .env
+.git/
+servers.dump
