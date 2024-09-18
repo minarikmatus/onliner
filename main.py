@@ -10,7 +10,14 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-my_token = os.getenv('discord_token')
+bot_token = os.getenv('discord_token', None)
+
+if not bot_token:
+  message = (
+      "Couldn't find the `bot_token` environment variable. "
+      "Make sure to add it to your `.env` file like this: `discord_token=value_of_your_bot_token`"
+  )
+  raise ValueError(message)
 
 database_path = 'servers.dump'
 
@@ -21,10 +28,12 @@ matus_user_id = 0
 synced = 0
 
 intents = discord.Intents.default()
+intents.guilds = True
 #intents.message_content = True  #for on_message
+
+#Privileged Intents (Needs to be enabled on developer portal of Discord)
 intents.members = True
 intents.presences = True
-intents.guilds = True
 
 bot = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(bot)
@@ -73,7 +82,7 @@ async def last(interaction: discord.Interaction):
   response = ''
   
   #for offline users return their times and times
-  for member in interaction.guild.members[:30]:
+  for member in interaction.guild.members[:30]: # type: ignore
     if member.status == discord.Status.offline \
     and not member.bot:
       if len(response) > 0:
@@ -96,8 +105,7 @@ async def last(interaction: discord.Interaction):
 )
 async def lastseen(interaction: discord.Interaction, mention: str):
   server_data = servers.get(interaction.guild_id, {})
-  #id = int(mention.replace("<", "").replace(">", "").\
-  #  replace("!", "").replace("@", "").replace("&", ""))
+  
   try:
     id = int(re.sub('[<>&@!]', '', mention))
   except Exception as e:
@@ -168,4 +176,4 @@ async def on_ready():
 #       case "ping":
 #         await message.channel.send("Pong!")
 
-bot.run(my_token)
+bot.run(bot_token)

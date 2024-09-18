@@ -1,4 +1,5 @@
 .env
 .git/
+.vscode/
 data/
 servers.dump
