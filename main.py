@@ -14,7 +14,7 @@ bot_token = os.getenv('discord_token', None)
 
 if not bot_token:
   message = (
-      "Couldn't find the `bot_token` environment variable. "
+      "Couldn't find the `bot_token` environment variable."
       "Make sure to add it to your `.env` file like this: `discord_token=value_of_your_bot_token`"
   )
   raise ValueError(message)
@@ -79,21 +79,26 @@ async def sync_commands():
 )
 async def last(interaction: discord.Interaction):
   server_data = servers.get(interaction.guild_id, {})
-  response = ''
   
+  output_data = []
   #for offline users return their times and times
-  for member in interaction.guild.members[:30]: # type: ignore
+  for member in interaction.guild.members: # type: ignore
     if member.status == discord.Status.offline \
     and not member.bot:
-      if len(response) > 0:
-        response += '\n'
-
       if member.id in server_data:
-        response += member.name + ' as ' + member.display_name + \
-          ' was last seen on ' +\
-          format_timestamp(servers[interaction.guild_id][member.id])
+        output_data.append(
+          member.display_name + ' (' + member.name + \
+          ') was last seen on ' +\
+          format_timestamp(servers[interaction.guild_id][member.id]) + '.'
+        )
       else:
-        response += member.name + ' as ' + member.display_name + ' was never seen'
+        output_data.append(
+          member.display_name + ' (' + member.name + \
+          ') was never seen.'
+        )
+        
+  output_data.sort()
+  response = '\n'.join(output_data)
 
   await interaction.response.send_message(response, ephemeral=True)
 
@@ -120,13 +125,13 @@ async def lastseen(interaction: discord.Interaction, mention: str):
     member_time = server_data[member.id]
 
   if member.bot:
-    text = 'Bots are not tracked.'
+    text = 'Bots are not watched.'
   elif member.id not in server_data:
-    text = member.display_name + ' not seen online.'
+    text = member.display_name + ' never seen online.'
   elif time.time() - member_time < delay_seconds:
     text = member.display_name + ' is online.'
   else:
-    text = member.display_name +" was last seen on " + \
+    text = member.display_name + ' was last seen on ' + \
     format_timestamp(member_time) + '.'
   await interaction.response.send_message(text, ephemeral=True)
 
@@ -142,7 +147,7 @@ async def lastseen(interaction: discord.Interaction, mention: str):
 
 
 def format_timestamp(timestamp):
-  return f"<t:{timestamp}:f>"
+  return f'<t:{timestamp}:f>'
 
 
 #sync command tree, when added to server
@@ -158,11 +163,11 @@ async def on_guild_remove(guild: Guild):
 
 @bot.event
 async def on_ready():
-  print("Used on " + str(len(bot.guilds)) + " servers.")
+  print('Used on ' + str(len(bot.guilds)) + ' servers.')
 
   log_users.start()
   sync_commands.start()
-  print("ready")
+  print('ready')
 
 
 # @bot.event
