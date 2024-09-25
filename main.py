@@ -1,5 +1,5 @@
 import pickle
-import re
+#import re
 import time
 
 import discord
@@ -8,6 +8,13 @@ from discord.guild import Guild
 
 import os
 from dotenv import load_dotenv
+
+DISCORD_MESSAGE_LEN_LIMIT = 2000
+
+# function to cut riws to Discord max message length, keeping rows complete
+def cut_rows(text):
+  cut = text[:DISCORD_MESSAGE_LEN_LIMIT]
+  return cut[:cut.rfind('\n')]
 
 load_dotenv()
 bot_token = os.getenv('discord_token', None)
@@ -74,10 +81,10 @@ async def sync_commands():
  
 #list all offline users
 @tree.command(
-  name='last',
-  description='List all offline users'
+  name = 'last',
+  description = 'List all offline users (that fit in one discord message)'
 )
-async def last(interaction: discord.Interaction):
+async def last(interaction: discord.Interaction, offset: int = 0):
   server_data = servers.get(interaction.guild_id, {})
   
   output_data = []
@@ -98,40 +105,39 @@ async def last(interaction: discord.Interaction):
         )
         
   output_data.sort()
-  response = '\n'.join(output_data)
+  response = '\n'.join(output_data[offset:])
+  response = cut_rows(response)
 
   await interaction.response.send_message(response, ephemeral=True)
 
 
 #reply with time of specified user
 @tree.command(
-  name='lastseen',
-  description='When was user last seen'
+  name = 'lastseen',
+  description = 'When was user last seen online'
 )
-async def lastseen(interaction: discord.Interaction, mention: str):
+async def lastseen(interaction: discord.Interaction, mention: discord.Member):
   server_data = servers.get(interaction.guild_id, {})
   
-  try:
-    id = int(re.sub('[<>&@!]', '', mention))
-  except Exception as e:
-    text = 'User not found.'
-    await interaction.response.send_message(text, ephemeral=True)
-    return
-
-  member = await bot.fetch_user(id)
+  # try:
+  #   id = int(re.sub('[<>&@!]', '', mention))
+  # except Exception as e:
+  #   text = 'User not found.'
+  #   await interaction.response.send_message(text, ephemeral=True)
+  #   return
 
   member_time = time.time()
-  if member.id in server_data:
-    member_time = server_data[member.id]
+  if mention.id in server_data:
+    member_time = server_data[mention.id]
 
-  if member.bot:
+  if mention.bot:
     text = 'Bots are not watched.'
-  elif member.id not in server_data:
-    text = member.display_name + ' never seen online.'
+  elif mention.id not in server_data:
+    text = mention.display_name + ' was never seen online.'
   elif time.time() - member_time < delay_seconds:
-    text = member.display_name + ' is online.'
+    text = mention.display_name + ' is online.'
   else:
-    text = member.display_name + ' was last seen on ' + \
+    text = mention.display_name + ' was last seen on ' + \
     format_timestamp(member_time) + '.'
   await interaction.response.send_message(text, ephemeral=True)
 
