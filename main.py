@@ -1,6 +1,9 @@
+import dateparser
 import pickle
 #import re
 import time
+
+from datetime import datetime
 
 import discord
 from discord.ext import tasks
@@ -11,10 +14,13 @@ from dotenv import load_dotenv
 
 DISCORD_MESSAGE_LEN_LIMIT = 2000
 
+
 # function to cut riws to Discord max message length, keeping rows complete
 def cut_rows(text):
-  cut = text[:DISCORD_MESSAGE_LEN_LIMIT]
-  return cut[:cut.rfind('\n')]
+  text += '\n'
+  if len(text) > DISCORD_MESSAGE_LEN_LIMIT:
+    text = text[:DISCORD_MESSAGE_LEN_LIMIT]
+  return text[:text.rfind('\n')]
 
 load_dotenv()
 bot_token = os.getenv('discord_token', None)
@@ -71,6 +77,7 @@ async def log_users():
   with open(database_path, 'wb') as f:
     pickle.dump(servers, f)
 
+
 @tasks.loop(seconds=5)
 async def sync_commands():
   global synced
@@ -79,6 +86,60 @@ async def sync_commands():
     synced = 1
     print('commands synced')
  
+
+def format_timestamp(timestamp):
+  return f'<t:{timestamp}:f>'
+
+
+async def get_channel_users(interaction:discord.Interaction) -> list[str]:
+  channel = interaction.channel
+  # Check if the channel is a text channel
+  if isinstance(channel, discord.TextChannel):
+    # Fetch all members in the guild, filter bots and readers
+    members = list(member.display_name for member in channel.guild.members if not member.bot and channel.permissions_for(member).read_messages)
+  
+  elif isinstance(channel, discord.Thread):
+    thread_members = await channel.fetch_members()
+    members = []
+    for member in thread_members:
+      id = member.id
+      member = await bot.fetch_user(id)
+      if not member.bot:
+        members.append(member.display_name)
+  else:
+    return []
+  return members
+
+
+#show who is here
+@tree.command(
+  name = 'here',
+  description = 'List memebers of this channel or thread'
+)
+async def here(interaction: discord.Interaction):
+  channel = interaction.channel
+
+  # Check if the channel is a text channel
+  if isinstance(channel, discord.TextChannel) \
+    or isinstance(channel, discord.Thread):
+   
+    members = await get_channel_users(interaction=interaction)
+    print(members)
+  else:
+    await interaction.response.send_message('This command can only be used in text channels and their threads.', ephemeral=True)
+    return
+
+  if len(members) > 0:
+    members.sort()
+    response = '\n'.join(members)
+    response = cut_rows(response)
+    await interaction.response.send_message(response, ephemeral=True)
+  else: 
+    #should only happen on debug
+    response = 'No members fetched.'
+    await interaction.response.send_message(response, ephemeral=True)
+
+
 #list all offline users
 @tree.command(
   name = 'last',
@@ -152,8 +213,56 @@ async def lastseen(interaction: discord.Interaction, mention: discord.Member):
 #   print(server_data)
 
 
-def format_timestamp(timestamp):
-  return f'<t:{timestamp}:f>'
+#show users that were not able to see the messages after give time
+@tree.command(
+  name = 'since',
+  description = 'When was user last seen online'
+)
+async def since(interaction: discord.Interaction, timestamp:str):
+  time = dateparser.parse(timestamp)
+  if time is None:
+    response = 'Cound not parse the date.'
+    await interaction.response.send_message(response, ephemeral=True)
+
+  server_data = servers.get(interaction.guild_id, {})
+  
+  output_data = []
+  guild_id = interaction.guild_id
+  if guild_id is not None:
+    guild = bot.get_guild(guild_id)
+
+  if guild is None:
+    response = 'Server ID not recevied.'
+    await interaction.response.send_message(response, ephemeral=True)
+
+  channel = interaction.channel
+  if isinstance(channel, discord.Thread):
+    thread_members = await channel.fetch_members()
+    members = []
+    for member in thread_members:
+      id = member.id
+      members.append(await bot.fetch_user(id))
+  else:
+    members = interaction.channel.members
+
+  members = (member for member in members if member.bot is False)
+  for member in members:
+    
+    if member.id not in server_data \
+    or datetime.fromtimestamp(server_data[member.id]) < time: #type: ignore
+      output_data.append(member.display_name) # type: ignore
+
+
+  if len(output_data) > 0:
+    output_data.sort()
+    output_data.insert(1, 'Content did not see ' + str(len(output_data)) + ' members:')
+    response = '\n'.join(output_data)
+    response = cut_rows(response)
+    await interaction.response.send_message(response, ephemeral=True)
+  else: 
+    #should only happen on debug
+    response = 'No members fetched. Everyone has seen it.'
+    await interaction.response.send_message(response, ephemeral=True)
 
 
 #sync command tree, when added to server
@@ -163,9 +272,11 @@ async def on_guild_join(guild: Guild):
   await tree.sync(guild=discord.Object(id=guild.id))
   await bot.change_presence(status=discord.Status.online)
 
+
 @bot.event
 async def on_guild_remove(guild: Guild):
   print('Removed from server ' + str(guild.name))
+
 
 @bot.event
 async def on_ready():
