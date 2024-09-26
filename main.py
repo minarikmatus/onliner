@@ -261,7 +261,7 @@ async def since(interaction: discord.Interaction, timestamp:str):
     await interaction.response.send_message(response, ephemeral=True)
   else: 
     #should only happen on debug
-    response = 'No members fetched. Everyone has seen it.'
+    response = 'No members fetched. Everyone was online since.'
     await interaction.response.send_message(response, ephemeral=True)
 
 

@@ -7,6 +7,9 @@ Discord bot to watch users when they were last seen online.
 
 `/lastseen @mention` shows time of specific user
 
+`/since TIMESTAMP` shows users in current channel or thread that were not online since TIMESTAMP
+
+
 ## SETUP
 
 install required packages
