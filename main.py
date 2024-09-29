@@ -143,7 +143,7 @@ async def here(interaction: discord.Interaction):
 #list all offline users
 @tree.command(
   name = 'last',
-  description = 'List all offline users (that fit in one discord message)'
+  description = 'List all offline users (max 2000 characters)'
 )
 async def last(interaction: discord.Interaction, offset: int = 0):
   server_data = servers.get(interaction.guild_id, {})
@@ -180,13 +180,6 @@ async def last(interaction: discord.Interaction, offset: int = 0):
 async def lastseen(interaction: discord.Interaction, mention: discord.Member):
   server_data = servers.get(interaction.guild_id, {})
   
-  # try:
-  #   id = int(re.sub('[<>&@!]', '', mention))
-  # except Exception as e:
-  #   text = 'User not found.'
-  #   await interaction.response.send_message(text, ephemeral=True)
-  #   return
-
   member_time = time.time()
   if mention.id in server_data:
     member_time = server_data[mention.id]
@@ -203,30 +196,25 @@ async def lastseen(interaction: discord.Interaction, mention: discord.Member):
   await interaction.response.send_message(text, ephemeral=True)
 
 
-#finish this command - add conversions
-# @tree.command(
-#   name='alloffline',
-#   description='See times of all offline users'
-# )
-# async def alloffline(ctx):
-#   server_data = servers.get(ctx.guild.id, {})
-#   print(server_data)
-
-
-#show users that were not able to see the messages after give time
+#show users that were not able to see the messages after given time
 @tree.command(
   name = 'since',
-  description = 'When was user last seen online'
+  description = 'List users that were online since given time'
 )
-async def since(interaction: discord.Interaction, timestamp:str):
-  time = dateparser.parse(timestamp)
+async def since(interaction: discord.Interaction, timestamp:str = ''):
+  if timestamp == '':
+    time = dateparser.parse('1 January 1970')
+  else:
+    time = dateparser.parse(timestamp)
   if time is None:
     response = 'Cound not parse the date.'
     await interaction.response.send_message(response, ephemeral=True)
 
   server_data = servers.get(interaction.guild_id, {})
   
-  output_data = []
+  read_data = []
+  unread_data = []
+
   guild_id = interaction.guild_id
   if guild_id is not None:
     guild = bot.get_guild(guild_id)
@@ -235,34 +223,54 @@ async def since(interaction: discord.Interaction, timestamp:str):
     response = 'Server ID not recevied.'
     await interaction.response.send_message(response, ephemeral=True)
 
+  # get members of channel or thread
   channel = interaction.channel
-  if isinstance(channel, discord.Thread):
-    thread_members = await channel.fetch_members()
-    members = []
-    for member in thread_members:
-      id = member.id
-      members.append(await bot.fetch_user(id))
-  else:
-    members = interaction.channel.members
+  members = []
+  if isinstance(channel, discord.TextChannel):  # Ensure it's a text channel
+    members = channel.members  # Get the members in the channel
+  elif isinstance(channel, discord.Thread):
+    threadmembers = await channel.fetch_members()
+
+    #get member objects from guild members
+    for threadmember in threadmembers:
+      if guild is not None:
+        members.append(guild.get_member(threadmember.id))
 
   members = (member for member in members if member.bot is False)
+
+  # split members to read and unread
   for member in members:
-    
     if member.id not in server_data \
-    or datetime.fromtimestamp(server_data[member.id]) < time: #type: ignore
-      output_data.append(member.display_name) # type: ignore
+    or datetime.fromtimestamp(server_data[member.id]) < time: # type: ignore
+      unread_data.append((member.display_name) + ' (' + member.name + ')')   # type: ignore
+    else:
+      read_data.append((member.display_name) + ' (' + member.name + ')')   # type: ignore
 
-
-  if len(output_data) > 0:
-    output_data.sort()
-    output_data.insert(1, 'Content did not see ' + str(len(output_data)) + ' members:')
-    response = '\n'.join(output_data)
-    response = cut_rows(response)
-    await interaction.response.send_message(response, ephemeral=True)
+  # construct response
+  if len(read_data) > 0:
+    read_data.sort()
+    read_data.insert(0, '**Content could see ' + str(len(read_data)) + ' members:**')
+    response_read = '\n'.join(read_data)
+    response_read = cut_rows(response_read)
+    #await interaction.response.send_message(response, ephemeral=True)
   else: 
     #should only happen on debug
-    response = 'No members fetched. Everyone was online since.'
-    await interaction.response.send_message(response, ephemeral=True)
+    response_read = '**Noone could see the content.**'
+    #await interaction.response.send_message(response, ephemeral=True)
+
+  if len(unread_data) > 0:
+    unread_data.sort()
+    unread_data.insert(0, '**Content did not see ' + str(len(unread_data)) + ' members:**')
+    response_unread = '\n'.join(unread_data)
+    response_unread = cut_rows(response_unread)
+    #await interaction.response.send_message(response, ephemeral=True)
+  else: 
+    #should only happen on debug
+    response_unread = '**All could see the content.**'
+    #await interaction.response.send_message(response, ephemeral=True)
+
+  response= response_read + '\n\n' + response_unread
+  await interaction.response.send_message(response, ephemeral=True)
 
 
 #sync command tree, when added to server
