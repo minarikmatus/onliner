@@ -1,13 +1,15 @@
 # onliner
-Discord bot to watch users when they were last seen online.
+Discord bot watching members when they were last seen online.
 
 ## Commands
 
-`/last` shows last online times of all server members which are not online 
+`/ending` shows threads that will be auto archived in next 24 hours
 
-`/lastseen @mention` shows time of specific user
+`/last` shows server members that are not online with time when they were last online
 
-`/since TIMESTAMP` shows users in current channel or thread that could or couldn't see the conent since TIMESTAMP
+`/lastseen @mention` shows time when specific member was last seen online
+
+`/since TIMESTAMP` shows members in current channel or thread that could or couldn't see the content since TIMESTAMP
 
 
 ## SETUP

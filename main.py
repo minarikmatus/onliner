@@ -1,9 +1,8 @@
 import dateparser
 import pickle
-#import re
 import time
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import discord
 from discord.ext import tasks
@@ -15,7 +14,7 @@ from dotenv import load_dotenv
 DISCORD_MESSAGE_LEN_LIMIT = 2000
 
 
-# function to cut riws to Discord max message length, keeping rows complete
+# function to cut rows to Discord max message length, keeping rows complete
 def cut_rows(text):
   text += '\n'
   if len(text) > DISCORD_MESSAGE_LEN_LIMIT:
@@ -42,7 +41,7 @@ synced = 0
 
 intents = discord.Intents.default()
 intents.guilds = True
-#intents.message_content = True  #for on_message
+intents.message_content = True  #for on_message and /ending
 
 #Privileged Intents (Needs to be enabled on developer portal of Discord)
 intents.members = True
@@ -87,6 +86,38 @@ async def sync_commands():
     print('commands synced')
  
 
+#shows threads that will be auto archived in next 24 hours
+@tree.command(
+  name = 'ending',
+  description = 'List threads that will be auto archived in next 24 hours'
+)
+async def ending(interaction: discord.Interaction):
+  await interaction.response.defer(thinking=True, ephemeral=True)
+  # Get the current time
+  now = datetime.now()    #todo timezone needs to be taken into account
+
+  # Create a list to hold threads that are about to archived
+  threads_closing_soon = []
+
+  # Get the current guild (server)
+  guild = interaction.guild
+
+  for channel in guild.text_channels:   # type: ignore
+    for thread in channel.threads:
+      if not thread.archived:
+        # Fetch the last message in the channel
+        message = [message async for message in thread.history(limit=1)][0]
+        
+        #calculate thread age
+        last_message_minutes = int((datetime.now(timezone.utc) - message.created_at).total_seconds()/60)
+        
+        if last_message_minutes > (thread.auto_archive_duration - 1440) and last_message_minutes < thread.auto_archive_duration:
+          threads_closing_soon.append(thread.mention)
+  
+  message = '\n'.join(threads_closing_soon)
+  await interaction.followup.send(content=message)
+
+
 def format_timestamp(timestamp):
   return f'<t:{timestamp}:f>'
 
@@ -114,7 +145,7 @@ async def get_channel_users(interaction:discord.Interaction) -> list[str]:
 #show who is here
 @tree.command(
   name = 'here',
-  description = 'List memebers of this channel or thread'
+  description = 'List members of this channel or thread'
 )
 async def here(interaction: discord.Interaction):
   channel = interaction.channel
@@ -124,7 +155,7 @@ async def here(interaction: discord.Interaction):
     or isinstance(channel, discord.Thread):
    
     members = await get_channel_users(interaction=interaction)
-    print(members)
+    #print(members)
   else:
     await interaction.response.send_message('This command can only be used in text channels and their threads.', ephemeral=True)
     return
