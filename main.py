@@ -113,10 +113,13 @@ async def ending(interaction: discord.Interaction):
         
         if last_message_minutes > (thread.auto_archive_duration - 1440) and last_message_minutes < thread.auto_archive_duration:
           threads_closing_soon.append(thread.mention)
-  
-  message = '\n'.join(threads_closing_soon)
-  await interaction.followup.send(content=message)
 
+  response = '\n'.join(threads_closing_soon)
+  
+  if response == '':
+    response = 'No threads about to be archived.'
+
+  await interaction.followup.send(content=response)
 
 def format_timestamp(timestamp):
   return f'<t:{timestamp}:f>'
