@@ -93,6 +93,7 @@ async def sync_commands():
 )
 async def ending(interaction: discord.Interaction):
   await interaction.response.defer(thinking=True, ephemeral=True)
+
   # Get the current time
   now = datetime.now()    #todo timezone needs to be taken into account
 
@@ -102,8 +103,26 @@ async def ending(interaction: discord.Interaction):
   # Get the current guild (server)
   guild = interaction.guild
 
+  #count threads
+  sum = 0
   for channel in guild.text_channels:   # type: ignore
     for thread in channel.threads:
+      sum+=1
+    
+  update = 'Found ' + str(sum) + ' threads...'
+  await interaction.edit_original_response(content=update)
+
+  #process threads
+  count = 0 
+  for channel in guild.text_channels:   # type: ignore
+    for thread in channel.threads:
+      count +=1
+
+      #show update every 10% of progress
+      if ((count-1)/sum)*100%10 > ((count)/sum)*100%10:
+        update = 'Processed ' + str(count) + ' of ' + str(sum) + ' threads.'
+        await interaction.edit_original_response(content=update)
+
       if not thread.archived:
         # Fetch the last message in the channel
         message = [message async for message in thread.history(limit=1)][0]
@@ -119,7 +138,7 @@ async def ending(interaction: discord.Interaction):
   if response == '':
     response = 'No threads about to be archived.'
 
-  await interaction.followup.send(content=response)
+  await interaction.edit_original_response(content=response)
 
 def format_timestamp(timestamp):
   return f'<t:{timestamp}:f>'
@@ -286,22 +305,18 @@ async def since(interaction: discord.Interaction, timestamp:str = ''):
     read_data.insert(0, '**Content could see ' + str(len(read_data)) + ' members:**')
     response_read = '\n'.join(read_data)
     response_read = cut_rows(response_read)
-    #await interaction.response.send_message(response, ephemeral=True)
   else: 
     #should only happen on debug
-    response_read = '**Noone could see the content.**'
-    #await interaction.response.send_message(response, ephemeral=True)
+    response_read = '**Nobody could see the content.**'
 
   if len(unread_data) > 0:
     unread_data.sort()
     unread_data.insert(0, '**Content did not see ' + str(len(unread_data)) + ' members:**')
     response_unread = '\n'.join(unread_data)
     response_unread = cut_rows(response_unread)
-    #await interaction.response.send_message(response, ephemeral=True)
   else: 
     #should only happen on debug
     response_unread = '**All could see the content.**'
-    #await interaction.response.send_message(response, ephemeral=True)
 
   response= response_read + '\n\n' + response_unread
   await interaction.response.send_message(response, ephemeral=True)
