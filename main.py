@@ -141,7 +141,7 @@ async def ending(interaction: discord.Interaction):
   await interaction.edit_original_response(content=response)
 
 def format_timestamp(timestamp):
-  return f'<t:{timestamp}:f>'
+  return f'<t:{timestamp}:R>'
 
 
 async def get_channel_users(interaction:discord.Interaction) -> list[str]:
