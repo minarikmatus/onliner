@@ -26,7 +26,7 @@ bot_token = os.getenv('discord_token', None)
 
 if not bot_token:
   message = (
-      "Couldn't find the `bot_token` environment variable."
+      "Could not find the `bot_token` environment variable."
       "Make sure to add it to your `.env` file like this: `discord_token=value_of_your_bot_token`"
   )
   raise ValueError(message)
@@ -34,7 +34,6 @@ if not bot_token:
 database_path = 'servers.dump'
 
 delay_seconds = 30
-matus_user_id = 0
 
 #flag if commands have been pushed to servers
 synced = 0
@@ -149,7 +148,7 @@ async def get_channel_users(interaction:discord.Interaction) -> list[str]:
   # Check if the channel is a text channel
   if isinstance(channel, discord.TextChannel):
     # Fetch all members in the guild, filter bots and readers
-    members = list(member.display_name for member in channel.guild.members if not member.bot and channel.permissions_for(member).read_messages)
+    members = list(member.mention for member in channel.guild.members if not member.bot and channel.permissions_for(member).read_messages)
   
   elif isinstance(channel, discord.Thread):
     thread_members = await channel.fetch_members()
@@ -158,7 +157,7 @@ async def get_channel_users(interaction:discord.Interaction) -> list[str]:
       id = member.id
       member = await bot.fetch_user(id)
       if not member.bot:
-        members.append(member.display_name)
+        members.append(member.mention)
   else:
     return []
   return members
@@ -177,9 +176,8 @@ async def here(interaction: discord.Interaction):
     or isinstance(channel, discord.Thread):
    
     members = await get_channel_users(interaction=interaction)
-    #print(members)
   else:
-    await interaction.response.send_message('This command can only be used in text channels and their threads.', ephemeral=True)
+    await interaction.response.send_message('This command can only be used in text channels or their threads.', ephemeral=True)
     return
 
   if len(members) > 0:
@@ -208,14 +206,12 @@ async def last(interaction: discord.Interaction, offset: int = 0):
     and not member.bot:
       if member.id in server_data:
         output_data.append(
-          member.display_name + ' (' + member.name + \
-          ') was last seen ' +\
+          member.mention + ' was last seen ' +\
           format_timestamp(servers[interaction.guild_id][member.id]) + '.'
         )
       else:
         output_data.append(
-          member.display_name + ' (' + member.name + \
-          ') was never seen.'
+          member.mention + ' was never seen.'
         )
         
   output_data.sort()
@@ -240,11 +236,11 @@ async def lastseen(interaction: discord.Interaction, mention: discord.Member):
   if mention.bot:
     text = 'Bots are not watched.'
   elif mention.id not in server_data:
-    text = mention.display_name + ' was never seen online.'
+    text = mention.mention + ' was never seen online.'
   elif time.time() - member_time < delay_seconds:
-    text = mention.display_name + ' is online.'
+    text = mention.mention + ' is online.'
   else:
-    text = mention.display_name + ' was last seen ' + \
+    text = mention.mention + ' was last seen ' + \
     format_timestamp(member_time) + '.'
   await interaction.response.send_message(text, ephemeral=True)
 
@@ -295,9 +291,9 @@ async def since(interaction: discord.Interaction, timestamp:str = ''):
   for member in members:
     if member.id not in server_data \
     or datetime.fromtimestamp(server_data[member.id]) < time: # type: ignore
-      unread_data.append((member.display_name) + ' (' + member.name + ')')   # type: ignore
+      unread_data.append(member.mention)   # type: ignore
     else:
-      read_data.append((member.display_name) + ' (' + member.name + ')')   # type: ignore
+      read_data.append(member.mention)   # type: ignore
 
   # construct response
   if len(read_data) > 0:
