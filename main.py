@@ -209,7 +209,7 @@ async def last(interaction: discord.Interaction, offset: int = 0):
       if member.id in server_data:
         output_data.append(
           member.display_name + ' (' + member.name + \
-          ') was last seen on ' +\
+          ') was last seen ' +\
           format_timestamp(servers[interaction.guild_id][member.id]) + '.'
         )
       else:
@@ -244,7 +244,7 @@ async def lastseen(interaction: discord.Interaction, mention: discord.Member):
   elif time.time() - member_time < delay_seconds:
     text = mention.display_name + ' is online.'
   else:
-    text = mention.display_name + ' was last seen on ' + \
+    text = mention.display_name + ' was last seen ' + \
     format_timestamp(member_time) + '.'
   await interaction.response.send_message(text, ephemeral=True)
 
