@@ -132,6 +132,7 @@ async def ending(interaction: discord.Interaction):
         if last_message_minutes > (thread.auto_archive_duration - 1440) and last_message_minutes < thread.auto_archive_duration:
           threads_closing_soon.append(thread.mention)
 
+  threads_closing_soon.sort()
   response = '\n'.join(threads_closing_soon)
   
   if response == '':
@@ -200,8 +201,10 @@ async def last(interaction: discord.Interaction, offset: int = 0):
   server_data = servers.get(interaction.guild_id, {})
   
   output_data = []
+  output_data_never = []
+  
   #for offline members return their times
-  for member in interaction.guild.members:    # type: ignore
+  for member in sorted(interaction.guild.members, key=lambda m: m.display_name):   # type: ignore
     if member.status == discord.Status.offline \
     and not member.bot:
       if member.id in server_data:
@@ -210,11 +213,12 @@ async def last(interaction: discord.Interaction, offset: int = 0):
           format_timestamp(servers[interaction.guild_id][member.id]) + '.'
         )
       else:
-        output_data.append(
+        output_data_never.append(
           member.mention + ' was never seen.'
         )
         
-  output_data.sort()
+  output_data.extend(output_data_never)
+
   response = '\n'.join(output_data[offset:])
   response = cut_rows(response)
 
