@@ -62,7 +62,7 @@ with open(database_path, 'rb') as f:
 
 
 @tasks.loop(seconds=delay_seconds)
-async def log_users():
+async def log_members():
   for server in bot.guilds:
     server_data = servers.get(server.id, {})
     timestamp = round(time.time())
@@ -88,7 +88,7 @@ async def sync_commands():
 #shows threads that will be auto archived in next 24 hours
 @tree.command(
   name = 'ending',
-  description = 'List threads that will be auto archived in next 24 hours'
+  description = 'List threads that will be auto archived in next 24 hours based last message'
 )
 async def ending(interaction: discord.Interaction):
   await interaction.response.defer(thinking=True, ephemeral=True)
@@ -143,7 +143,7 @@ def format_timestamp(timestamp):
   return f'<t:{timestamp}:R>'
 
 
-async def get_channel_users(interaction:discord.Interaction) -> list[str]:
+async def get_channel_members(interaction:discord.Interaction) -> list[str]:
   channel = interaction.channel
   # Check if the channel is a text channel
   if isinstance(channel, discord.TextChannel):
@@ -175,7 +175,7 @@ async def here(interaction: discord.Interaction):
   if isinstance(channel, discord.TextChannel) \
     or isinstance(channel, discord.Thread):
    
-    members = await get_channel_users(interaction=interaction)
+    members = await get_channel_members(interaction=interaction)
   else:
     await interaction.response.send_message('This command can only be used in text channels or their threads.', ephemeral=True)
     return
@@ -191,22 +191,22 @@ async def here(interaction: discord.Interaction):
     await interaction.response.send_message(response, ephemeral=True)
 
 
-#list all offline users
+#list all offline members
 @tree.command(
   name = 'last',
-  description = 'List all offline users (max 2000 characters)'
+  description = 'List all offline members (max 2000 characters)'
 )
 async def last(interaction: discord.Interaction, offset: int = 0):
   server_data = servers.get(interaction.guild_id, {})
   
   output_data = []
-  #for offline users return their times and times
-  for member in interaction.guild.members: # type: ignore
+  #for offline members return their times
+  for member in interaction.guild.members:    # type: ignore
     if member.status == discord.Status.offline \
     and not member.bot:
       if member.id in server_data:
         output_data.append(
-          member.mention + ' was last seen ' +\
+          member.mention + ' was last seen ' + \
           format_timestamp(servers[interaction.guild_id][member.id]) + '.'
         )
       else:
@@ -221,10 +221,10 @@ async def last(interaction: discord.Interaction, offset: int = 0):
   await interaction.response.send_message(response, ephemeral=True)
 
 
-#reply with time of specified user
+#reply with time of specified member
 @tree.command(
   name = 'lastseen',
-  description = 'When was user last seen online'
+  description = 'When was member last seen online'
 )
 async def lastseen(interaction: discord.Interaction, mention: discord.Member):
   server_data = servers.get(interaction.guild_id, {})
@@ -245,10 +245,10 @@ async def lastseen(interaction: discord.Interaction, mention: discord.Member):
   await interaction.response.send_message(text, ephemeral=True)
 
 
-#show users that were not able to see the messages after given time
+#show members that were not able to see the messages after given time
 @tree.command(
   name = 'since',
-  description = 'List users that were online since given time'
+  description = 'List members that were seen online since given time'
 )
 async def since(interaction: discord.Interaction, timestamp:str = ''):
   if timestamp == '':
@@ -260,7 +260,7 @@ async def since(interaction: discord.Interaction, timestamp:str = ''):
     await interaction.response.send_message(response, ephemeral=True)
 
   server_data = servers.get(interaction.guild_id, {})
-  
+ 
   read_data = []
   unread_data = []
 
@@ -335,7 +335,7 @@ async def on_guild_remove(guild: Guild):
 async def on_ready():
   print('Used on ' + str(len(bot.guilds)) + ' servers.')
 
-  log_users.start()
+  log_members.start()
   sync_commands.start()
   print('ready')
 
