@@ -3,6 +3,8 @@ Discord bot watching members when they were last seen online.
 
 ## Commands
 
+`/here` shows last online times of all users in current channel or thread
+
 `/ending` shows threads that will be auto archived in next 24 hours
 
 `/last` shows server members that are not online with time when they were last online

@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 import discord
 from discord.ext import tasks
 from discord.guild import Guild
+from discord.errors import Forbidden
+
 
 import os
 from dotenv import load_dotenv
@@ -175,8 +177,17 @@ async def here(interaction: discord.Interaction):
   # Check if the channel is a text channel
   if isinstance(channel, discord.TextChannel) \
     or isinstance(channel, discord.Thread):
-   
-    members = await get_channel_members(interaction=interaction)
+  
+    try:
+        members = await get_channel_members(interaction=interaction)
+    except Forbidden:
+        await interaction.response.send_message('I do not have permission to access this channel or thread.', ephemeral=True)
+        return
+    except Exception as e:
+        message = f'An error occurred while fetching members: {str(e)}'
+        await interaction.response.send_message(message, ephemeral=True)
+        return
+
   else:
     await interaction.response.send_message('This command can only be used in text channels or their threads.', ephemeral=True)
     return
@@ -282,7 +293,16 @@ async def since(interaction: discord.Interaction, timestamp:str = ''):
   if isinstance(channel, discord.TextChannel):  # Ensure it's a text channel
     members = channel.members  # Get the members in the channel
   elif isinstance(channel, discord.Thread):
-    threadmembers = await channel.fetch_members()
+    
+    try:
+        threadmembers = await channel.fetch_members()
+    except Forbidden:
+        await interaction.response.send_message('I do not have permission to access this channel or thread.', ephemeral=True)
+        return
+    except Exception as e:
+        message = f'An error occurred while fetching members: {str(e)}'
+        await interaction.response.send_message(message, ephemeral=True)
+        return
 
     #get member objects from guild members
     for threadmember in threadmembers:
