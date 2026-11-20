@@ -27,3 +27,12 @@ install required packages
 ## START
 
     python3 main.py
+
+## Docker
+
+```sh
+docker build -t onliner:latest .
+docker run --rm --env-file .env -v "$PWD/data:/data" -w /data onliner:latest
+```
+
+The image runs as UID 1000 (for the Kubernetes PSA `restricted` policy).
